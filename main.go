@@ -33,16 +33,43 @@ type User struct {
 	emailAddress string
 }
 
+type TaskRequest struct {
+	userID          string
+	taskName        string
+	taskDescription string
+	dueDate         string
+	expirationDate  string
+}
+
 func (app *App) initializeRoutes() {
-	// app.Router.HandleFunc("/products", app.getUsers).Methods("GET")
-	app.Router.HandleFunc("/product", app.createUser).Methods("POST")
+	// app.Router.HandleFunc("/users", app.getUsers).Methods("GET")
+	app.Router.HandleFunc("/users", app.createUser).Methods("POST")
+	app.Router.HandleFunc("/{userId}/tasks", app.createTask).Methods("POST")
+
+}
+
+func (am *AccountManager) getDB() (DB *gorm.DB) {
+	return am.DB
 }
 
 func (am *AccountManager) addUser(user User) (err error) {
 	log.Printf("Adding user %s", user.userName)
 
+	db := am.getDB()
+	result := db.Create(&user) // pass pointer of data to Create
+	log.Print("Result: ", result)
 	// gorm database here
 	return
+}
+
+func (am *AccountManager) addTask(taskRequest TaskRequest) (err error) {
+	log.Printf("Adding task %s", taskRequest.taskName)
+	db := am.getDB()
+	result := db.Create(&taskRequest) // pass pointer of data to Create
+	log.Print("Result: ", result)
+
+	return
+
 }
 
 func (app *App) createUser(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +94,29 @@ func (app *App) createUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
 
+}
+
+func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
+	var am AccountManager
+	var taskRequest TaskRequest
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&taskRequest); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	defer r.Body.Close()
+
+	if err := am.addTask(taskRequest); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response, _ := json.Marshal(taskRequest)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }
 
 func (app *App) Run(addr string) {
@@ -102,14 +152,3 @@ func (app *App) Initialize() {
 // func handleRequests() {
 // 	http.HandleFunc("/bar", addUser).Methods()
 // }
-
-func addUser(w http.ResponseWriter, r *http.Request) {
-
-	var user string
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-}
