@@ -31,9 +31,18 @@ type AccountManager struct {
 type User struct {
 	userName     string
 	emailAddress string
+	userID       int
 }
 
 type TaskRequest struct {
+	userID          string
+	taskName        string
+	taskDescription string
+	dueDate         string
+	expirationDate  string
+}
+
+type Task struct {
 	userID          string
 	taskName        string
 	taskDescription string
@@ -45,6 +54,7 @@ func (app *App) initializeRoutes() {
 	// app.Router.HandleFunc("/users", app.getUsers).Methods("GET")
 	app.Router.HandleFunc("/users", app.createUser).Methods("POST")
 	app.Router.HandleFunc("/{userId}/tasks", app.createTask).Methods("POST")
+	app.Router.HandleFunc("/{userId}/tasks", app.getTasksForUser).Methods("GET")
 
 }
 
@@ -53,6 +63,9 @@ func (am *AccountManager) getDB() (DB *gorm.DB) {
 }
 
 func (am *AccountManager) addUser(user User) (err error) {
+
+	// TODO: find way to generate unique id
+
 	log.Printf("Adding user %s", user.userName)
 
 	db := am.getDB()
@@ -67,6 +80,17 @@ func (am *AccountManager) addTask(taskRequest TaskRequest) (err error) {
 	db := am.getDB()
 	result := db.Create(&taskRequest) // pass pointer of data to Create
 	log.Print("Result: ", result)
+
+	return
+
+}
+
+func (am *AccountManager) getTasks(userID string) (tasks []Task, err error) {
+	log.Printf("Getting tasks from user %s", userID)
+	db := am.getDB()
+	db.Where("userID = ?", userID).Find(&tasks) // pass pointer of data to Create
+
+	log.Print("Tasks:  ", tasks)
 
 	return
 
@@ -113,6 +137,29 @@ func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response, _ := json.Marshal(taskRequest)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
+}
+
+func (app *App) getTasksForUser(w http.ResponseWriter, r *http.Request) {
+	var am AccountManager
+
+	routeVars := mux.Vars(r)
+
+	userID := routeVars["userID"]
+
+	defer r.Body.Close()
+
+	tasks, err := am.getTasks(userID)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response, _ := json.Marshal(tasks)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
