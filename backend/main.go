@@ -62,6 +62,7 @@ type TaskRequest struct {
 }
 
 type Task struct {
+	ID              int    `json:"id" gorm:"primaryKey;autoIncrement:true"`
 	UserID          int    `json:"userID"`
 	TaskName        string `json:"taskName"`
 	TaskDescription string `json:"taskDescription"`
@@ -69,19 +70,14 @@ type Task struct {
 	ExpirationDate  string `json:"expirationDate"`
 }
 
-func DBConnection() (db *gorm.DB, err error) {
-	db, err = gorm.Open(postgres.Open("test.db"), &gorm.Config{})
-	if err != nil {
-		return db, err
-	}
-	err = db.AutoMigrate(&User{})
-	err = db.AutoMigrate(&Task{})
-	err = db.AutoMigrate(&TaskRequest{})
-
-	if err != nil {
-		return db, err
-	}
-	return db, nil
+func requestToTask(taskRequest TaskRequest) (task Task) {
+	task.ID = 0
+	task.UserID = taskRequest.UserID
+	task.TaskName = taskRequest.TaskName
+	task.ExpirationDate = taskRequest.ExpirationDate
+	task.DueDate = taskRequest.DueDate
+	task.TaskDescription = taskRequest.TaskDescription
+	return
 }
 
 func (app *App) getHome(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +131,7 @@ func (am *AccountManager) getUsers() (users []User, err error) {
 func (am *AccountManager) addTask(taskRequest TaskRequest) (err error) {
 	log.Printf("Adding task %s", taskRequest.TaskName)
 	db := am.getDB()
-	task := Task(taskRequest)
+	task := requestToTask(taskRequest)
 	result := db.Create(&task) // pass pointer of data to Create
 	log.Print("Result: ", result)
 
@@ -176,6 +172,7 @@ func (app *App) createUser(w http.ResponseWriter, r *http.Request) {
 
 	response, _ := json.Marshal(user)
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
@@ -193,6 +190,7 @@ func (app *App) getUsers(w http.ResponseWriter, r *http.Request) {
 
 	response, _ := json.Marshal(users)
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
@@ -218,6 +216,7 @@ func (app *App) createTask(w http.ResponseWriter, r *http.Request) {
 
 	response, _ := json.Marshal(taskRequest)
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
@@ -246,6 +245,7 @@ func (app *App) getTasksForUser(w http.ResponseWriter, r *http.Request) {
 
 	response, _ := json.Marshal(tasks)
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(response)
